@@ -49,12 +49,12 @@ GRPCHost 对象是否安全连接。
 ```Objectivec
 @property(nonatomic, copy, nullable) NSString *hostNameOverride;
 ```
-覆盖服务器名字，在 SSL 连接中有用。在设置 channel 参数的时候，GRPC_ARG_MAX_MESSAGE_LENGTH 会被赋值成这个。  
+覆盖服务器名字，在 SSL 连接中有用。  
 
 ```Objectivec
 @property(nonatomic, strong, nullable) NSNumber *responseSizeLimitOverride;  
 ```
-HTTP/2 中 信息的最大数据量，默认是 4MB。  
+HTTP/2 中 信息的最大数据量，默认是 4MB。在设置 channel 参数的时候，GRPC_ARG_MAX_MESSAGE_LENGTH 会被赋值成这个。  
 
 ## GRPCHost 私有成员变量  
 
@@ -92,7 +92,7 @@ GRPCChannel *_channel;
             withPrivateKey:(nullable NSString *)pemPrivateKey
              withCertChain:(nullable NSString *)pemCertChain
                      error:(NSError **)errorPtr;
-```Objectivec
+```
 创建 SSL 证书，赋值到公开成员变量`channelCreds`。  
 
 ```Objectivec
@@ -189,12 +189,12 @@ NSString *_host;
 ```Objectivec
 NSString *_packageName;
 ```
-调用方法的包名（具体可看 proto3）。
+调用服务器方法的包名（具体可看 proto3）。
 
 ```Objectivec
 NSString *_serviceName;
 ```
-调用方法的服务名（具体可看 proto3）。
+调用服务器方法的服务名（具体可看 proto3）。
 
 **由上面三个私有成员变量，可精确在服务器中找到我们所要调用的方法，注意，三者缺一不可。**  
 
@@ -242,14 +242,15 @@ typedef NS_ENUM(NSInteger, GRXWriterState) {
   GRXWriterStateStarted,
 
   /**
-   * writer 被临时挂起，除非切换到开始状态，否则不可以发送值到 writeable， 这个 writer 可以在任何	* 时候切换到完成状态，而且允许发送 writesFinishedWithError: 到 writeable。 
+   * writer 被临时挂起，除非切换到开始状态，否则不可以发送值到 writeable， 这个 writer 可以在任何
+   * 时候切换到完成状态，而且允许 writeable 发送 writesFinishedWithError: 。 
    */
   GRXWriterStatePaused,
 
   /**
    * writer 释放 writeable，而且不再影响。
    * 很少情况下会设置到这个状态，它的 writeable 也不会发送 writesFinishedWithError: 消息。
-   * 发送 finishWithError: 消息， writer 会广播 writeable  并且切换到这个状态。
+   * writer 发送 finishWithError: 消息， writer 会广播 writeable 并且切换到这个状态。
    */
   GRXWriterStateFinished
 };
@@ -478,7 +479,7 @@ gRPC 通道层发起网络请求的对象。
 ```Objectivec
 - (void)startBatchWithOperations:(NSArray *)ops errorHandler:(void(^)())errorHandler;
 ```
-网络连接，包括接收数据和发送数据，决定于`ops`。  
+注册网络事件到通道层，包括接收数据和发送数据，决定于`ops`。  
 
 ```Objectivec
 - (void)startBatchWithOperations:(NSArray *)ops;
