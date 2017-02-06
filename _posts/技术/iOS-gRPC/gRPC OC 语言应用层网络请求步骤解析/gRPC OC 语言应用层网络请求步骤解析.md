@@ -39,7 +39,7 @@ GRPCCall 中私有成员变量是实现它功能的重要工具，这些工具�
 在 gRPC GRPCCall 中，网络连接开始第一个 API 是：
 
 ```Objectivec
- (void)startWithWriteable:(id<GRXWriteable>)writeable {
+ - (void)startWithWriteable:(id<GRXWriteable>)writeable {
   @synchronized(self) {
     _state = GRXWriterStateStarted;
   }
