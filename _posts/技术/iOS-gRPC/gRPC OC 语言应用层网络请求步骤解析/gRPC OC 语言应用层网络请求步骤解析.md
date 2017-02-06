@@ -243,7 +243,7 @@ GRPCCall 中私有成员变量是实现它功能的重要工具，这些工具�
 #define GRPC_ARG_MAX_RECONNECT_BACKOFF_MS "grpc.max_reconnect_backoff_ms"
 #define GRPC_ARG_INITIAL_RECONNECT_BACKOFF_MS  "grpc.initial_reconnect_backoff_ms"
 ```
-先说明两个参数的意义，这两个参数是一起使用的，所以这里同一说明。  
+先说明两个参数的意义，这两个参数是一起使用的，所以这里统一说明。  
 `""grpc.max_reconnect_backoff_ms""`是网络请求重连的最大间隔时间，单位 ms。  
 `"grpc.initial_reconnect_backoff_ms"`是网络请求第一次重连的间隔时间，单位 ms。  
 这两个有什么关系呢？当网络请求没有成功时，gRPC 底层会自动进行网络重连(当然是没有取消网络连接的情况下重连)。当我们设置网络请求第一次重连的间隔时间后，当发起网络请求，如果没有服务器没有回应，等待第一次重连的间隔时间，如果还没有回应，就发起重连，第一次发起重连后，重连的时间间隔会随着重连次数的增多不断增加，最后增加到网络请求重连的最大间隔时间，然后就以这个最大重连间隔时间重连，不再增加重连的间隔时间。  
