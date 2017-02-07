@@ -49,7 +49,8 @@ GRPCHost 对象是否安全连接。
 ```Objectivec
 @property(nonatomic, copy, nullable) NSString *hostNameOverride;
 ```
-覆盖服务器名字，在 SSL 连接中有用。  
+覆盖服务器名字，在 SSL 连接中有用。在设置 channel 参数的时候，  
+GRPC_SSL_TARGET_NAME_OVERRIDE_ARG 会被赋值成这个。  
 
 ```Objectivec
 @property(nonatomic, strong, nullable) NSNumber *responseSizeLimitOverride;  
