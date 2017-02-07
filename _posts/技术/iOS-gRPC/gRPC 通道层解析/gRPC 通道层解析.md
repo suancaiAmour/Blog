@@ -148,8 +148,7 @@ static void execute_op(grpc_exec_ctx *exec_ctx, grpc_call *call,
 * grpc\_call\_stack  
 * grpc\_call\_element 
 
-`grpc_channel_filter`表示通道层网络请求的所要执行的动作，`grpc_channel_element`会存储一个  
-`grpc_channel_filter`，`grpc_channel_stack`是前两者在内存的寻址基底，可以通过  `grpc_channel_stack`找到前两者。  
+`grpc_channel_filter`表示通道层网络请求的所要执行的动作，`grpc_channel_element`会存储一个`grpc_channel_filter`，`grpc_channel_stack`是前两者在内存的寻址基底，可以通过`grpc_channel_stack`找到前两者。  
 
 `grpc_call_stack`和`grpc_call_element`可以对应`grpc_channel`的`grpc_channel_element`和`grpc_channel_filter`。在创建`grpc_call`的时候会从相对应的`grpc_channel`获取这些数据。  
 
@@ -222,8 +221,7 @@ typedef struct {
 ```
 上面注释来源于[gRPC Python 源码浅析 - Channel](http://ju.outofmemory.cn/entry/247132)。  
 
-这里不再详细说明如何创建`grpc_call`和`grpc_channel`，可以参考上面的两篇文章，基本逻辑是使用  
-`Channel Filter`来动作网络连接。  
+这里不再详细说明如何创建`grpc_call`和`grpc_channel`，可以参考上面的两篇文章，基本逻辑是使用`Channel Filter`来动作网络连接。  
 
 在 iOS 下的通道层用的`Channel Filter`是`grpc_compress_filter`，这个`grpc_compress_filter`是在`init.c`的函数`static void register_builtin_channel_init()`中设置的：  
 ![Channel Filter 设置](gRPC 通道层解析/Channel Filter 设置.png)  
@@ -246,5 +244,4 @@ const grpc_channel_filter grpc_compress_filter = {
     "compress"};
 ```
 关键点在于`compress_start_transport_stream_op`，注册事件都是经过这个函数的。  
-在 *grpc\_call 注册网络事件的过程* 段落中，`call`现在拥有的`grpc_call_element`就是  
-`grpc_compress_filter`，而`elem->filter->start_transport_stream_op(exec_ctx, elem, op);`执行的就是`compress_start_transport_stream_op`。  
+在 *grpc\_call 注册网络事件的过程* 段落中，`call`现在拥有的`grpc_call_element`就是`grpc_compress_filter`，而`elem->filter->start_transport_stream_op(exec_ctx, elem, op);`执行的就是`compress_start_transport_stream_op`。  
