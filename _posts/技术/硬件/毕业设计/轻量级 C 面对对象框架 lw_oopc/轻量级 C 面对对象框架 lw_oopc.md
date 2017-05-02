@@ -29,7 +29,6 @@ void type##_release(type* t);       \
 void type##_retain(type* t);        \
 struct type                         \
 {   								\
-     int referenceCount;            \
 
 #define END_ABS_CLASS };
 
@@ -40,12 +39,11 @@ void type##_ctor(type* cthis) {
 
 // 根类
 ABS_CLASS(rootClass)
+void *reserve;
 END_ABS_CLASS
-```  
+```   
 
-`referenceCount`属性是标志引用计数，在 lw_oopc 中生成的对象，我采取了引用计数的方法，这样对象拥有中进行内存管理比较方便。在引用计数中，每一个对象负责维护对象所有引用的计数值。当一个新的引用指向对象时，引用计数器就递增，当去掉一个引用时，引用计数就递减。当引用计数到零时，该对象就将释放占有的资源。在这样的管理中，能尽量的防止野指针和内存泄露的出现，但这并不能完全处理掉内存泄露和野指针，即使使用了引用计数，也需要程序员高水平的使用。在 lw_oopc 中，创建一个引用计数默认是1(在下面非抽象类的 `type##new`中可以看到)，调用一次 release 函数，引用计数减一，调用一次 retain 函数，引用计数加1。在 lw_oopc 中，并没有实现一个对象拥有另一个对象时候，引用计数自动加1，当一个对象引用一个对象的时候，还是需要开发者调用 retain 去引用计数加1，这也是 lw_oopc 中的一个很大的不足。这也就要求开发者有很强的内存管理意识，不过开发者可以放心，在 lw_oopc 中，有检测内存泄露的方法，开发者可以检测出哪里内存泄露了，进行处理，这个稍后再说。  
-
-`rootClass`是一个根类，如果不需要实现某些特定的协议，我建议可以继承这个`rootClass`，因为非抽象类的实现都需要继承一个父类，这跟 OC 的 NSObject 很像，因为这两种其实都是 C 语言，无法躲过 C 语言的约束。但这也很好的保证了子类必须采取引用计数的方案，统一内存管理的方案，这也是一种好处。  
+`rootClass`是一个根类，如果不需要实现某些特定的协议，我建议可以继承这个`rootClass`，因为非抽象类的实现都需要继承一个父类，这跟 OC 的 NSObject 很像，因为这两种其实都是 C 语言，无法躲过 C 语言的约束。 
 
 ## lw_oopc 类
 类是面对对象的核心所在，类可以表示万物，用不同的类可以表示不同的东西，也可以用类集成一些比较羞涩抽象的概念。面对对象的理念就是万物都可以用类表示，而对象就是万物的具体表现。类的形成可以从人类文化成长可以看出一点端倪。我们或许听过一个故事，画一个圈，问小学生，小学生会答是盘子，是碟子，是足球等等，而高中生只会答是圆，最后得出教育毁灭了孩子的创造力，这其实是一种混淆概念。当人未学的文化时，人类通常都是 _口头文化_ 的表现，而当人类学到知识，就会有一种 _书本文化_ 的表现，所以小学生会答很多种具体的对象，而高中生只会答圆。高中生已经具有一定的 _书本文化_ 在他们潜意识中，会将看到的东西抽象起来，看做一个类，然后回答出来，而 _口头文化_ 的小学生则是把它看做各种对象回答，这并不是创造力的问题，而是两者文化不同的表现，人类学的知识，更喜欢统计起来，抽象起来，这样文化才能更好的传承。这也是面对对象中类的意义所在。下面是 lw_oopc 中类是如何实现的：  
@@ -61,7 +59,8 @@ void type##_retain(type *t);        \
 struct type                         \
 {                                   \
     void (*dealloc)(type* cthis);   \
-    struct Father father;
+    struct Father father;			\
+	int referenceCount;            	\
 
 #define END_CLASS  };
 
@@ -69,7 +68,7 @@ struct type                         \
 type* type##_new(const char* describe)                  \
 {            											\
     struct type *cthis = (struct type*)lw_oopc_malloc(sizeof(struct type), #type, describe);   \
-    cthis->father.referenceCount = 1;                   \
+    cthis->referenceCount = 1;                   \
     if(!cthis)                                          \
     {                                                   \
         return 0;                                       \
@@ -77,17 +76,17 @@ type* type##_new(const char* describe)                  \
     type##_ctor(cthis);                                 \
     return cthis;                                       \
 }                                                       \
-void type##_release(type* cthis)                    \
-{                                                   \
-     if(--cthis->father.referenceCount == 0)         \
-     {                                               \
-         cthis->dealloc(cthis);                      \
-         lw_oopc_free(cthis);                        \
-     }                                               \
-}                                                   \
+void type##_release(type* cthis)                        \
+{                                                       \
+     if(--cthis->referenceCount == 0)                   \
+     {                                                  \
+         cthis->dealloc(cthis);                         \
+         lw_oopc_free(cthis);                           \
+     }                                                  \
+}                                                       \
 void type##_retain(type* cthis)                         \
 {                                                       \
-     cthis->father.referenceCount++;                    \
+     cthis->referenceCount++;                           \
 }                                                       \
 void type##dealloc11111(type* cthis){}                  \
 void type##_ctor(type* cthis) {                         \
@@ -96,6 +95,8 @@ void type##_ctor(type* cthis) {                         \
 
 #define END_CTOR	} \
 ```  
+
+`referenceCount`属性是标志引用计数，在 lw_oopc 中生成的对象，我采取了引用计数的方法，这样对象拥有中进行内存管理比较方便。在引用计数中，每一个对象负责维护对象所有引用的计数值。当一个新的引用指向对象时，引用计数器就递增，当去掉一个引用时，引用计数就递减。当引用计数到零时，该对象就将释放占有的资源。在这样的管理中，能尽量的防止野指针和内存泄露的出现，但这并不能完全处理掉内存泄露和野指针，即使使用了引用计数，也需要程序员高水平的使用。在 lw_oopc 中，创建一个引用计数默认是1，调用一次 release 函数，引用计数减一，调用一次 retain 函数，引用计数加1。在 lw_oopc 中，并没有实现一个对象拥有另一个对象时候，引用计数自动加1，当一个对象引用一个对象的时候，还是需要开发者调用 retain 去引用计数加1，这也是 lw_oopc 中的一个很大的不足。这也就要求开发者有很强的内存管理意识，不过开发者可以放心，在 lw_oopc 中，有检测内存泄露的方法，开发者可以检测出哪里内存泄露了，进行处理，这个稍后再说。  
 
 要想用类生成具体的对象，必须调用 `type##_new` 函数，当调用此函数的时候，会调用 `lw_oopc_malloc`分配具体的空间，然后将引用计数默认为1，最后调用 `type##_ctor` 初始化对象内部的函数。  
 
