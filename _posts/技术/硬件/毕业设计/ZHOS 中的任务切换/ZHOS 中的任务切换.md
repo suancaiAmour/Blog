@@ -174,3 +174,7 @@ NoSave
 9. ISR执行完毕并退出后，PendSV服务例程开始执行，并且在里面执行上下文切换
 
 10. 当 PendSV执行完毕后，回到任务 A，同时系统再次进入线程模式
+
+# 参考文献
+[简单OS（ucos超级精简版）——裸调度器【worldsing笔记】](http://www.cnblogs.com/worldsing/archive/2013/11/06/3409987.html)  
+[一步步写STM32 OS【三】PendSV与堆栈操作](http://www.cnblogs.com/sky1991/p/stepbystep_stm32_os_3.html)
