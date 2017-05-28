@@ -85,7 +85,7 @@ typedef union {
 
 <font color="red"> dispatch\_queue\_s</font> 对象将要压入的目标队列。  
 
-<font color="red"> do_ctxt</font> 上下文环境，通常我们需要传入的函数形参参数。  
+<font color="red"> do_ctxt</font> 上下文环境，任务对象通常为传入的函数形参参数，队列对象会存储线程池，一个信号量(用来线程保活，尽量降低线程的创建)和 pThread 的`pthread_workqueue_t`。  
 
 <font color="red"> do_finalizer</font> 类似 OC 的 `dealloc`函数。  
 
@@ -189,9 +189,9 @@ struct dispatch_queue_s {
 
 <font color="green"> dq\_width:</font> 任务队列的宽度，串行队列为 1，并行队列大于 1。  
 
-<font color="green"> dq\_item\_tail:</font> 指向任务队列的尾节点。  
+<font color="green"> dq\_item\_tail:</font> 判断队列是否有数据。  
 
-<font color="green"> dq\_item\_head:</font> 指向任务队列的头节点。  
+<font color="green"> dq\_item\_head:</font> 任务队列存储的内容，其他的由`do_next`引出，在全局队列中，执行队列内容处理函数，如果`do_next`有内容，会在`dq_item_head`取出内容后，将`do_next`赋值上去。  
 
 <font color="green"> dq\_serialnum:</font>  任务队列的编号，任务队列的编号可看下面:  
 
@@ -509,6 +509,8 @@ static const unsigned long dispatch_bcounter_key	= __PTK_LIBDISPATCH_KEY5;
 
 <font color="#FF44FF"> dispatch\_queue\_key</font> 存储当前线程的任务对列。  
 
-<font color="#FF44FF"> dispatch\_sema4\_key</font> 存储信号量，保证串行任务队列执行顺序，串行对列死锁的原因也在于此。  
+<font color="#FF44FF"> dispatch\_sema4\_key</font> 存储信号量，保证任务的执行顺序。  
+
+<font color="#FF44FF"> dispatch\_cache\_key</font> 存储当前任务的缓存  
 
 其他具体作用，在我看了源码会添加进去。  
