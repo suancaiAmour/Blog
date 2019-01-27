@@ -7,10 +7,10 @@ comments: true
 
 ---
 
-#前言  
+# 前言  
 在不久前，苹果正式推出了 Swift 4.2。 2018 年过去了，Swift ABI 稳定版本还是没有推出，不仅如此， Swift 在 2018 年也受到不少的影响和冲击，但 Swift 作为新一代编程语言，蕴含多种编程思想和先进理念，我相信在不久的将来，Swift 能大放异彩，至少也能取代 OC，走向更宽广的路。作为一名 iOS 开发，了解 Swift 各个基础类型的内存结构是很有必要。为此，我阅读 Swift 4.2 的源码，并结合 Objc4-754 的源码在此讲述我的个人理解，如有不对，不甚指教，谢谢。  
 
-#HeapObject  
+# HeapObject  
 Swift Class 存储到堆上的实例对象都是`HeapObject`类型:  
 
 ```C++
@@ -36,12 +36,12 @@ struct HeapObject {
 `metadata`类似于 OC 中`isa`，它两之间的内存模型其实是一模一样的。  
 `refCounts`是 Swift 类实例对象的引用计数。在不同情况下，里面会有对`Unowned`，`weak`和`Strong`的引用计数。  
 
-#InProcess  
+# InProcess  
 在详细讲述 `HeapMetadata`和`InlineRefCounts`前，先说明一下`InProcess`这个结构体。因为在 Swift 的 Runtime 模板中都是以它为模板的。  
 ![InProcess](Swift4.2 Class 的内存模型分析/InProcess.jpg)
 在 Swift Runtime 源码中，大部分 C++ 的类或结构体的`Runtime`模板都是`InProcess`，由此可方便的看到源码类或结构体内存的属性的真正基础类型是什么。  
 
-#HeapMetadata  
+# HeapMetadata  
 在 Swift 4.2 中，Swift 的类的元类最终的数据结构是`TargetClassMetadata`的 C++ 结构体，它在内存模型上跟 Objc4-754 中的`switf_class_t`（即 OC 中 Swift 类的`isa`）是一样的，具体模型可看下图：  
 ![TargetClassMetadata 和 switf_class_t](Swift4.2 Class 的内存模型分析/TargetClassMetadata 和 switf_class_t.jpg)  
 在上面中，`TargetClassMetadata`和`switf_class_t`内存中的内容刚好是一对应的（`TargetClassMetadata`在尾后多了一个`IvarDestroyer`）。`switf_class_t`是继承于`objc_class`的，所以实际上 OC 实例对象中的`isa`可以指向`TargetClassMetadata`的。  
