@@ -133,10 +133,11 @@ class RefCounts {
 	constexpr RefCounts(Initialized_t)
 	    : refCounts(RefCountBits(0, 1)) {}
  } 
-```  
+```
+
 上面是对`InlineRefCounts`的精简代码，`InlineRefCounts`主要是有`bits`存储着数据，这个`bits`存储的数据大概是这样的：  
 ![RefCountBit](Swift4.2 Class 的内存模型分析/RefCountBit.jpg)  
-也就是这个 64 bit 的空间存储着`UseSlowRC`，`strong`引用计数，`IsDeiniting`，`Unowned`引用计数几个数据。从`RefCountBitsT`构造器可知，Swift 类在创建的时候就会把`unowned`的引用计数置为 1，`strong`的引用计数为`0`，这在我后续的内存查看出也是验证了这个数据。当`strong`引用计数减到负数时，会把`IsDeiniting`标志上，并开始释放对象:  
+也就是这个 64 bit 的空间存储着`UseSlowRC`，`strong`引用计数，`IsDeiniting`，`Unowned`引用计数几个数据。从`RefCountBitsT`构造器可知，Swift 类在创建的时候就会把`unowned`的引用计数置为 1，`strong`的引用计数为`0`，这在我后续的内存查看出也是验证了这个数据。当`strong`引用计数减到负数时，会把`IsDeiniting`标志上，并开始释放对象:   
 
 ```C++
 bool doDecrementSlow(RefCountBits oldbits, uint32_t dec) {
@@ -173,7 +174,7 @@ bool doDecrementSlow(RefCountBits oldbits, uint32_t dec) {
 
     return deinitNow;
   }
-```  
+```
 
 ## WeakReference  
 上面只讲述到了`strong`引用计数和`weak`引用计数的存储，却没有讲述`weak`引用计数的存储，那`weak`引用计数是怎么样存储的，`weak`对象又是怎么样的？  
@@ -246,7 +247,6 @@ HeapObjectSideTableEntry* RefCounts<InlineRefCountBits>::allocateSideTable(bool 
                                              std::memory_order_relaxed));
   return side;
 }
-
 ```
 
 初始化一个`WeakReference`逻辑很简单：创建`HeapObjectSideTableEntry`，里面去存储对象的`strong`，`weak`和`unowned`引用计数，并且`HeapObjectSideTableEntry`也存储了对象的指针，对象是否已经释放的标志位等，创建`sideTableBit`，替换掉原对象`strong`和`unowned`引用计数的存储区域。  
@@ -322,7 +322,8 @@ void decrementWeak() {
 	assert(refCounts.getUnownedCount() == 0);
 	delete this;
 }
-```  
+```
+
 可以看出，`weak`和`unowned`引用计数都为 0 的时候，会直接释放掉`HeapObjectSideTableEntry`的。这和我的猜想有点不一致，为什么去检测`unowned`引用计数，而不是`strong`引用计数或者对象释放标志位？  
 
 # 参考文章  
