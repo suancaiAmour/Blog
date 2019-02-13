@@ -45,6 +45,8 @@ struct HeapObject {
 在 Swift 4.2 中，Swift 的类的元类最终的数据结构是`TargetClassMetadata`的 C++ 结构体，它在内存模型上跟 Objc4-754 中的`switf_class_t`（即 OC 中 Swift 类的`isa`）是一样的，具体模型可看下图：  
 ![TargetClassMetadata 和 switf_class_t](Swift4.2 Class 的内存模型分析/TargetClassMetadata 和 switf_class_t.jpg)  
 在上面中，`TargetClassMetadata`和`switf_class_t`内存中的内容刚好是一对应的（`TargetClassMetadata`在尾后多了一个`IvarDestroyer`）。`switf_class_t`是继承于`objc_class`的，所以实际上 OC 实例对象中的`isa`可以指向`TargetClassMetadata`的。  
+
+在 Swift 官方文档中，有对上面内存模型各个属性的描述： [TypeMetadata.rst](https://github.com/apple/swift/blob/master/docs/ABI/TypeMetadata.rst)
 ## OC 中的改动  
 现在的 OC 跟旧版 OC 的运行时是有改动的，现在的网上的文章大部分还是以旧版 OC 的结构来分析的，这是错误的。  
 ![旧版 OC 结构体](Swift4.2 Class 的内存模型分析/旧版 OC 结构体.jpg)  
