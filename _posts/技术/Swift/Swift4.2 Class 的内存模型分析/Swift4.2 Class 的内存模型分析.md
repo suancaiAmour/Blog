@@ -8,7 +8,7 @@ comments: true
 ---
 
 # 前言  
-在不久前，苹果正式推出了 Swift 4.2。 2018 年过去了，Swift ABI 稳定版本还是没有推出，不仅如此， Swift 在 2018 年也受到不少的影响和冲击，但 Swift 作为新一代编程语言，蕴含多种编程思想和先进理念，我相信在不久的将来，Swift 能大放异彩，至少也能取代 OC，走向更宽广的路。作为一名 iOS 开发，了解 Swift 各个基础类型的内存结构是很有必要。为此，我阅读 Swift 4.2 的源码，并结合 Objc4-754 的源码在此讲述我的个人理解，如有不对，不甚指教，谢谢。  
+在不久前，苹果正式推出了 Swift 4.2。 2018 年过去了，Swift ABI 稳定版本还是没有推出，不仅如此， Swift 在 2018 年也受到不少的影响和冲击，但 Swift 作为新一代编程语言，蕴含多种编程思想和先进理念，我相信在不久的将来，Swift 能大放异彩，至少也能取代 OC，走向更宽广的路。作为一名 iOS 开发，了解 Swift 各个基础类型的内存结构是很有必要。为此，我阅读 Swift 4.2 的部分源码，文档和网络上大牛的博客，并结合 Objc4-754 的部分源码在此讲述我的个人理解，如有不对，不甚指教，谢谢。  
 
 # HeapObject  
 Swift Class 存储到堆上的实例对象都是`HeapObject`类型:  
@@ -80,16 +80,71 @@ OC 元类的`bits/Data`: 0x000060001496484，标志的是`FAST_HAS_DEFAULT_RR`�
 
 在 Switf 或 OC 的模型中，还有几个地方具有标志位的属性，比如说`TargetClassMetadata`的属性`Flags`，甚至于`TargetMetadata`中的`Kind`（也就是 OC 元类的`isa`）的某几个 bit 都是标志位，这种手法在 Swift 源码中多次出现（在后面的 Swift 所要讲的引用计数也有这样的表现），这样的好处在于以最少的内存存储最多的数据。Swift 中众多的标志`bit`这边就不再讲述，读者可以阅读源码从中了解。  
 
-## TargetValueWitnessTable (Virtual Table)
-函数表是 C++ 实现多态一种解决方案，在 Swift 中也是采取同样的方案。这也是 Swift 性能较 OC 有较大提升的原因，在编译器优化的情况下，Swift 大部分会采用静态分发。在产生多态的情况下，会采用函数表分发的方式，进行函数调用。当然在上面也解析到 Swift 是支持 OC 的消息机制，但 OC 的消息机制是比较耗性能的，所以我们开发者应尽量的使 Swift 进行静态分发或函数表分发，这要求我们对类中的方法的权限要把握好，可以`private`的必须`private`，这样编译器会使优化它到静态分发。Swift 中的函数表实际上是跟 C++ 是由所区别的，Swift 基础函数表是`TargetValueWitnessTable`的结构体：  
+## TargetValueWitnessTable  
+`TargetValueWitnessTable`存储了对 Swift 值内存的操作函数，包括`initializeWithCopy`，`assignWithCopy`等函数。`TargetValueWitnessTable`结构体如下：  
 ![TargetValueWitnessTable](Swift4.2 Class 的内存模型分析/TargetValueWitnessTable.jpg)  
 
-上图是我总结的`TargetValueWitnessTable`结构体内部属性，这也是跟 C++ 的 VTable 最大的不一样的地方，Swift 的 VTable 是一个结构体，不是数组，一旦定义下来，是无法更改的，这也是说在 Swift 扩展中写的方法是无法函数表分发的，也无法继承给子类（不使用 OC 的运行时机制），我们只能在扩展中使用 OC 的消息分发或者静态分发。这样的好处是，它不需要 C++ 的那种相对地址寻址，它的性能会更加高效，更加接近于静态分发。  
+上图是我总结的一张图，如有错误，不甚指教。`TargetValueWitnessTable`是一张对 Swift 值内存的函数表，根据里面的函数，就可以实现对相应值的内存进行初始化，赋值，复制等操作，这样可以在值内存无引用计数的情况，也能正确的创建和释放内存。不仅是操作内存函数，`TargetValueWitnessTable`还记录着值内存的`size`，`stride`等。  
 
-在上面`TargetClassMetadata`的结构体中，是不存在函数表`TargetValueWitnessTable`这样的属性，那 Swift 的元类是如何找到自己的函数表的，秘密就在于`FullMetadata`:  
+在上面`TargetClassMetadata`的结构体中，是不存在函数表`TargetValueWitnessTable`这样的属性，那 Swift 的元类是如何找到自己的`TargetValueWitnessTable`的，秘密就在于`FullMetadata`:  
 ![FullMetadata](Swift4.2 Class 的内存模型分析/FullMetadata.jpg)  
 上图中的`HeaderType`其实是函数表(`TargetValueWitnessTable`)，而`T`是`TargetClassMetadata`，`FullMetadata`是包含了函数表和元类的，而元类跟函数表的地址其实只相差一个函数表的内存大小，所以元类寻找函数表的方法如下：  
 ![函数表寻址](Swift4.2 Class 的内存模型分析/函数表寻址.jpg)  
+
+## VTable  
+C++ 实现多态使用的是虚拟函数表（`VTable`），OC 实现多态是 OC 的运行时消息机制，那 Swift 是如何实现的？从上面可以知道，实际 Swift 也是可以利用 OC 的运行时，但这样的话 Swift 相对于 OC 的性能提升就不大了，OC 的消息机制其实是挺耗费性能的，Swift 作为一门新时代语言，只作为要兼容 OC 才保留这个特性，而实际上，Swift 实现多态的消息分发也是跟 C++ 一样的`VTable`。  
+
+Swift 的`VTable`是怎么样的？从上面图展示了`TargetClassMetadata`的内存模型，Swift 的类的`VTable`也是存储在`TargetClassMetadata`内的，它会在`IVarDestroyer`后面的内存继续存储下去。如上图可以推测出`TargetClassMetadata`在 64 位 CPU 中内存大小是 80，那 Swift 类的`VTable`相对于`TargetClassMetadata`的偏移量为 80。  
+
+举例展示两个 Swift 类如何进行方法替换:  
+
+```Swift
+class A {
+    var name = "A"
+    
+    func SB() {
+        print("A")
+    }
+}
+
+class B {
+    var name = "B"
+    
+    func SB() {
+        print("B")
+    }
+}
+
+let a = A()
+// 获取到 A 元类的指针
+let aClassPointer = UnsafeMutableRawPointer(bitPattern: Unmanaged.passUnretained(a).toOpaque().assumingMemoryBound(to: Int.self).pointee)!
+// 获取到 A.SB 方法指针
+let aSBPointer = aClassPointer.advanced(by: 104).assumingMemoryBound(to: UnsafeMutableRawPointer.self)
+    
+let b = B()
+// 获取到 B 元类的指针
+let bClassPointer = UnsafeMutableRawPointer(bitPattern:Unmanaged.passUnretained(b).toOpaque().assumingMemoryBound(to: Int.self).pointee)!
+// 获取到 B.SB 方法指针
+let bSBPointer = bClassPointer.advanced(by: 104).assumingMemoryBound(to:UnsafeMutableRawPointer.self)
+    
+// B.SB 赋值到 A.SB
+aSBPointer.initialize(to: bSBPointer.pointee)
+    
+a.SB() // B
+```
+
+![Swift_VTable](Swift4.2 Class 的内存模型分析/Swift_VTable.jpg)  
+
+可以看出`a.SB()`本应该输出`A`，但经过我们偷偷让`b.SB()`赋值到`a.SB()`函数表中位置，成功的使`a.SB()`变为调用`b.SB()`。  
+
+可能有人疑问，上面不是`VTable`相对`TargetClassMetadata`偏移量不是 80 吗？这个`SB`函数不是第一个函数，怎么偏移了 104，这实际上跟`var name`有关系，一个`var name`会创建 3 个函数，所以需要再偏移 24 才能到`SB()`函数位置，下面是类 A 和类 B 编译后 SIL （Swift 编译中间语言）中`VTable`：  
+![A_B_VTable.jpg](Swift4.2 Class 的内存模型分析/A_B_VTable.jpg)  
+
+由上可以看出`var name`会生成三个方法，其中两个分别是`getter`和`setter`方法，接下来才是我们需要的`SB`方法。  
+
+实际上，只有可变属性才会创建这三个方法，`let`属性是不会在函数表中注册方法的，这也是为什么`var`属性可以有属性观察器，而`let`属性是不具备的。  
+
+顺便说一下，上面的两个类之间方法替换在实际应用中是不规范的，因为苹果在安全性上会进行指针验证[Preparing Your App to Work with Pointer Authentication](https://developer.apple.com/documentation/security/preparing_your_app_to_work_with_pointer_authentication)。  
 
 
 ## TargetClassDescriptor  
@@ -334,3 +389,4 @@ void decrementWeak() {
 [深入剖析Swift性能优化](https://tech.meituan.com/2018/11/01/swift-compile-performance-optimization.html)  
 [OC 和 Swift 的弱引用源码分析](https://juejin.im/entry/5a5f2f646fb9a01c9950d7f4)  
 [Class written in Swift](http://yulingtianxia.com/blog/2018/10/28/Class-written-in-Swift/)  
+[Swift方法调用](https://jintao1997.github.io/2019/01/06/Swift%E6%96%B9%E6%B3%95%E8%B0%83%E7%94%A8/)
